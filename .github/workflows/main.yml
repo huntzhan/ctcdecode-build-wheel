@@ -42,7 +42,7 @@ jobs:
         path: .
 
     - name: Fix +x permission
-      run: find tools/ -type f -iname "*.sh" -exec chmod +x {} \;
+      run: find script/ -type f -iname "*.sh" -exec chmod +x {} \;
 
     - name: Setup python/pip
       run: |
@@ -61,7 +61,7 @@ jobs:
       run: pip install torch==${{ matrix.torch_version }}
 
     - name: Build ctcdecode
-      run: tools/build.sh ${{ matrix.ctcdecode_version }} dist/
+      run: script/build.sh ${{ matrix.ctcdecode_version }} dist/
 
     # - name: Build distribution
     #   run: |
