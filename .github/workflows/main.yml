@@ -58,7 +58,7 @@ jobs:
         pip install -U setuptools wheel
 
     - name: Install torch
-      run: pip install torch==${{ matrix.torch_version }}
+      run: pip install torch==${{ matrix.torch_version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
     - name: Build ctcdecode
       run: script/build.sh ${{ matrix.ctcdecode_version }} dist/
