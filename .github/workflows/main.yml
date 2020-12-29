@@ -1,0 +1,148 @@
+name: build-and-publish
+
+on:
+ push:
+
+jobs:
+
+ checkout:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v2
+    - name: Upload checkout
+      uses: actions/upload-artifact@v1
+      with:
+        name: checkout
+        path: .
+
+ build-linux:
+  needs: checkout
+  runs-on: ubuntu-latest
+  strategy:
+    matrix:
+      image:
+        - "quay.io/pypa/manylinux2010_x86_64"
+        - "quay.io/pypa/manylinux2010_i686"
+      python_abi:
+        - "cp36-cp36m"
+        - "cp37-cp37m"
+        - "cp38-cp38"
+        - "cp39-cp39"
+      torch_version:
+        - "1.7.1"
+      ctcdecode_version:
+        - "1.0.2"
+  container:
+    image: ${{ matrix.image }}
+  steps:
+    - name: Download checkout
+      uses: actions/download-artifact@v1
+      with:
+        name: checkout
+        path: .
+
+    - name: Fix +x permission
+      run: find tools/ -type f -iname "*.sh" -exec chmod +x {} \;
+
+    - name: Setup python/pip
+      run: |
+        rm -f /usr/bin/python
+        update-alternatives --install /usr/bin/python python /opt/python/${{ matrix.python_abi }}/bin/python 0
+        python --version
+
+        rm -f /usr/bin/pip
+        update-alternatives --install /usr/bin/pip pip /opt/python/${{ matrix.python_abi }}/bin/pip 0
+        pip install -U pip
+        pip --version
+
+        pip install -U setuptools wheel
+
+    - name: Install torch
+      run: pip install torch==${{ matrix.torch_version }}
+
+    - name: Build ctcdecode
+      run: tools/build.sh ${{ matrix.ctcdecode_version }} dist/
+
+    # - name: Build distribution
+    #   run: |
+    #     tools/distrib.sh \
+    #       $(pwd) \
+    #       ${{ matrix.redis_version }} \
+    #       ${{ matrix.python_abi }} \
+    #       $(echo ${{ matrix.image }} | awk -F'/' '{print $(NF)}')
+
+    # - name: Upload distribution
+    #   uses: actions/upload-artifact@v1
+    #   with:
+    #     name: distribution
+    #     path: dist/
+
+#  build-macos:
+#   needs: checkout
+#   runs-on: macos-10.15
+#   strategy:
+#     matrix:
+#       redis_version:
+#         - "5.0.10"
+#         - "6.0.9"
+#   steps:
+#     - name: Download checkout
+#       uses: actions/download-artifact@v1
+#       with:
+#         name: checkout
+#         path: .
+
+#     - name: Fix +x permission
+#       run: find tools/ -type f -iname "*.sh" -exec chmod +x {} \;
+
+#     - name: Setup python
+#       uses: actions/setup-python@v1
+
+#     - name: Setup pip/poetry
+#       run: |
+#         pip install -U pip poetry
+#         pip --version
+#         poetry --version
+
+#     - name: Build redis
+#       run: tools/build.sh ${{ matrix.redis_version }} redis_server/bin
+
+#     - name: Build distribution
+#       run: |
+#         tools/distrib.sh \
+#           $(pwd) \
+#           ${{ matrix.redis_version }} \
+#           py3-none \
+#           macosx_10_15_x86_64
+
+#     - name: Upload distribution
+#       uses: actions/upload-artifact@v1
+#       with:
+#         name: distribution
+#         path: dist/
+
+#  publish:
+#   needs: [build-linux, build-macos]
+#   runs-on: ubuntu-latest
+#   steps:
+#     - name: Download distribution
+#       uses: actions/download-artifact@v1
+#       with:
+#         name: distribution
+#         path: dist/
+
+#     - name: Setup python
+#       uses: actions/setup-python@v1
+
+#     - name: Setup pip/twine
+#       run: |
+#         pip install -U pip twine
+#         pip --version
+#         twine --version
+
+#     - name: Upload distributions
+#       run: |
+#         twine upload dist/*
+#       env:
+#         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+#         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
